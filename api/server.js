@@ -8,7 +8,7 @@ const validator = require('validator');
 const logger = require('./configs/logger');
 const moment = require("moment");
 const FILENAME_TIMESTAMP_FORMAT =
-    `${moment().format('YYYY-MM-DD').trim()}-BigCommerce-products-import.csv`;
+    `${moment().format('YYYY-MM-DD').trim()}-BigCommerce-products-import.log`;
 const BigCommerce = require('node-bigcommerce');
 
 const bigCommerce = new BigCommerce({
@@ -68,6 +68,7 @@ app.post('/', async function (req, res) {
                     });
             /*pruductsBigCommerce arr*/
             let productsBigCommerce = [];
+            let productsBigCommerceData = [];
             Promise.all([getProducts]).then(() => {
                 data.forEach((element)=>{
                     if(element.count > 1) {
@@ -104,27 +105,36 @@ app.post('/', async function (req, res) {
                     }
                 })
                 //
-                console.log('productsBigCommerce', productsBigCommerce);
+//                console.log('productsBigCommerce', productsBigCommerce);
 
             }).then((value)=>{
 
                 productsBigCommerce.map((lineItem)=>{
-                    //console.log('line', lineItem);
                     bigCommerce.post(`/catalog/products`, lineItem)
                         .then((data) => {
-                            console.log('data', data);
+                            logger.info(`${JSON.stringify(data)}`);
+                            productsBigCommerceData.push(data)
                         })
                         .catch((err)=>{
-                            console.log("Error", err);
                             logger.info(`${JSON.stringify(err)}`);
-                        })
+                            productsBigCommerceData.push(err)
+                        }).finally(()=>{
+                              res.status(201).send({
+                                  message: 'Products uploaded!!!',
+                                  productsBigCommerceData: productsBigCommerceData
+                              });
+                          })
+
                 })
             })
+
     } catch (e) {
-        console.log('error9999', e)
+        console.log('error', e)
     }
 });
-
+app.get('/download', function (req, res, next) {
+    res.download(__dirname + `/logs/${FILENAME_TIMESTAMP_FORMAT}`, `${FILENAME_TIMESTAMP_FORMAT}`);
+});
 app.listen(8080 || process.env.PORT, function () {
  console.log('Server is running:');
 });

@@ -43,7 +43,7 @@ const handleSubmission = () => {
     .then((response) => response.json())
     .then((result) => {
         console.log("Success:", result);
-        setData(result.ValidationData)
+        setData(result.message)
         if(isShown !== true) {
             setIsShown(!isShown);
         }
@@ -55,6 +55,9 @@ const handleSubmission = () => {
     })
     .finally(()=>{
         setLoader(false);
+        alert.show("Products uploaded!!! ", {
+            title: "Products uploaded!!!"
+        });
     })
 };
 
@@ -72,25 +75,7 @@ return (
         <button className="waves-effect waves-light btn" onClick={handleSubmission}>Upload file</button>
         {isShown &&
             <div>
-                <a className="btn waves-effect waves-light position-btn" href='http://localhost:8080/download'>Download</a>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Error string</th>
-                            <th>Validation</th>
-                        </tr>
-                    </thead>
-                    {data.map((el, index)=>{
-                        return(
-                            <tbody key={index}>
-                                <tr>
-                                    <td>string{el[0]}</td>
-                                    <td>{el[1]}</td>
-                                </tr>
-                            </tbody>
-                        )
-                    })}
-                </table>
+                <a className="btn waves-effect waves-light position-btn" href='http://localhost:8080/download'>Download log file</a>
             </div>
         }
         {loader  && <Preloader />}

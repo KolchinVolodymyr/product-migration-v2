@@ -2,7 +2,7 @@ const winston = require("winston");
 const moment = require("moment");
 const TIMESTAMP_FORMAT = moment().format().trim();
 const FILENAME_TIMESTAMP_FORMAT =
-    `${__dirname}/../../logs/${moment().format('YYYY-MM-DD').trim()}-BigCommerce-products.log`;
+    `${__dirname}/../logs/${moment().format('YYYY-MM-DD').trim()}-BigCommerce-products-import.log`;
 const MESSAGE = Symbol.for('message');
 
 const logFormat = entry => {
