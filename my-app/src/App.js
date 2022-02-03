@@ -15,7 +15,7 @@ function App() {
                         <div className="card blue-grey darken-1">
                             <div className="card-content white-text">
                                 <span className="card-title">Data transfer script</span>
-                                <p>We'll look at migrating customer data coming from Shopify to BigCommerce</p>
+                                <p>We'll look at migrating products data coming from Shopify to BigCommerce</p>
                                 <p>Data must be in CSV format !!!</p>
                             </div>
                         </div>

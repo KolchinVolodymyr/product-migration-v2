@@ -6,14 +6,14 @@ export const Header = () => {
 
         width: '100%',
         padding: '2%',
-        backgroundColor: "#ff5722",
+        backgroundColor: "#2231ff",
         color: 'white',
         textAlign: 'center'
     }
 
     return(
         <div style={headerStyle}>
-            <h3>Customers Migration [Shopify -> BigCommerce]</h3>
+            <h3>Products Migration [Shopify -> BigCommerce]</h3>
         </div>
     )
 }

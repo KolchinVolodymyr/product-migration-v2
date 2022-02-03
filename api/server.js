@@ -8,8 +8,16 @@ const validator = require('validator');
 const logger = require('./configs/logger');
 const moment = require("moment");
 const FILENAME_TIMESTAMP_FORMAT =
-    `${moment().format('YYYY-MM-DD').trim()}-BigCommerce-customer.csv`;
+    `${moment().format('YYYY-MM-DD').trim()}-BigCommerce-products-import.csv`;
+const BigCommerce = require('node-bigcommerce');
 
+const bigCommerce = new BigCommerce({
+    clientId: 'k774mcmpeu75ert9zrha24gvsbswj1y',
+    accessToken: '86fxqoc9f8q6psha1sc0xaf6s2wgjyv',
+    storeHash: '85kzbf18qd',
+    responseType: 'json',
+    apiVersion: 'v3' // Default is v2
+});
 const app = express();
 //MIDDLEWARES
 app.use(upload({useTempFiles: true}));
@@ -17,165 +25,104 @@ app.use(cors());
 //ROUTE DEFINE
 app.post('/', async function (req, res) {
     try {
-        let countSuccessfully = 0;
-        let countError = 0;
-        const ValidationData = [];
         const data = [];
+            let getProducts =
+                csv()
+                    .fromFile(req.files.File.tempFilePath)
+                    .then((jsonObj) => {
+                        var combinedItems = jsonObj.reduce(function(arr, item, index) {
+                            var found = false;
 
-        let getProducts =
-        csv()
-            .fromFile(req.files.File.tempFilePath)
-            .then((jsonObj) => {
+                            for (var i = 0; i < arr.length; i++) {
+                                console.log("arr[i].Handle", arr[i])
+                                if (arr[i].Handle === item.Handle) {
+                                    found = true;
+                                    arr[i].count++;
+                                    // console.log('arr[i].option_display_name', arr[i].option_display_name)
+                                    arr[i].variants.push({
+                                        'sku': item['Variant SKU'],
+                                        'option_values': [{
+                                            'option_display_name': arr[i].option_display_name,
+                                            'label': item['Option1 Value']
+                                        }]
+                                    })
+                                }
+                            }
 
-                jsonObj.reduce(function(arr, item, index) {
-                var found = false;
+                            if (!found) {
+                                item.variants = [{
+                                    'sku': item['Variant SKU'],
+                                    'option_values': [{
+                                        'option_display_name': item['Option1 Name'],
+                                        'label': item['Option1 Value']
+                                    }]
+                                }];
+                                item.count = 1;
+                                item.option_display_name = item['Option1 Name'];
+                                arr.push(item);
+                                data.push(arr[i]);
+                            }
 
-                for (var i = 0; i < arr.length; i++) {
-                    if (arr[i].Email === item.Email) {
-                        found = true;
-                        arr[i].count++;
-                        arr[i].arr.push({
-                            'Address Line 1': item.Address1,
-                            'Address Line 2': item.Address2,
-                            'Address Company': item.Company,
-                            'Address City': item.City,
-                            'Address State': item.Province,
-                            'Address Zip': item.Zip,
-                            'Address Country': item.Country,
-                            'Address Phone': item.Phone,
+                            return arr;
+                        }, [])
+                    });
+            /*pruductsBigCommerce arr*/
+            let productsBigCommerce = [];
+            Promise.all([getProducts]).then(() => {
+                data.forEach((element)=>{
+                    if(element.count > 1) {
+                        productsBigCommerce.push({
+                            'name': element['Title'],
+                            'sku': element['Handle'],
+                            'price': element['Variant Price'],
+                            'weight': element['Variant Grams'],
+                            'type': 'physical',
+                            'variants': element['variants'],
+                            'description': element['Body (HTML)'],
+                            'brand_name': element['Vendor'],
+                            "images": [
+                                {
+                                  "image_url": element['Image Src']
+                                }
+                            ]
+                        })
+                    } else {
+                        productsBigCommerce.push({
+                            'name': element['Title'],
+                            'price': element['Variant Price'],
+                            'sku': element['Handle'],
+                            'weight': element['Variant Grams'],
+                            'type': 'physical',
+                            'description': element['Body (HTML)'],
+                            'brand_name': element['Vendor'],
+                            "images": [
+                                {
+                                  "image_url": element['Image Src']
+                                }
+                            ]
                         })
                     }
-                }
+                })
+                //
+                console.log('productsBigCommerce', productsBigCommerce);
 
-                if (!found) {
-                    item.arr = [{
-                        'Address Line 1': item.Address1,
-                        'Address Line 2': item.Address2,
-                        'Address Company': item.Company,
-                        'Address City': item.City,
-                        'Address State': item.Province,
-                        'Address Zip': item.Zip,
-                        'Address Country': item.Country,
-                        'Address Phone': item.Phone,
-                    }];
-                    item.count = 1;
-                    arr.push(item);
-                    data.push(arr[i]);
-                }
+            }).then((value)=>{
 
-                return arr;
-            }, [])
-            });
-
-            Promise.all([getProducts]).then(() => {
-                const writerExport = csvWriter({});
-
-                writerExport.pipe(fs.createWriteStream(`${FILENAME_TIMESTAMP_FORMAT}`));
-
-                data.map((i)=>{
-                    let count = 0;
-                    i.arr.map((a, index)=>{
-                        index++;
-                        count++;
-                        // loop over keys and values
-                        Object.entries(a).forEach(([key, value]) => {
-                             i[`${key} - ${index}`] = value;
-                        });
-
-                    });
-                    delete i.arr;
-                });
-
-
-                /*Change arr*/
-                var changeArray = data.map((item, index) => ({
-                    'Last Name': item['Last Name'],
-                    'First Name': item['First Name'],
-                    'Email Address': item['Email'],
-                    'Company': item['Company'],
-                    'Phone': item['Phone'],
-                    'Notes': item['Note'],
-                    'Address First Name - 1': item['First Name'],
-                    'Address Last Name - 1': item['Last Name'],
-                    'Address Company - 1': item['Address Company - 1'],
-                    'Address Line 1 - 1': item['Address Line 1 - 1'],
-                    'Address Line 2 - 1': item['Address Line 2 - 1'],
-                    'Address City - 1': item['Address City - 1'],
-                    'Address State - 1': item['Address State - 1'],
-                    'Address Zip - 1': item['Address Zip - 1'],
-                    'Address Country - 1': item['Address Country - 1'],
-                    'Address Phone - 1': item['Address Phone - 1'],
-                    'Address First Name - 2': item['First Name'],
-                    'Address Last Name - 2': item['Last Name'],
-                    'Address Company - 2': item['Address Company - 2'],
-                    'Address Line 1 - 2': item['Address Line 1 - 2'],
-                    'Address Line 2 - 2': item['Address Line 2 - 2'],
-                    'Address City - 2': item['Address City - 2'],
-                    'Address State - 2': item['Address State - 2'],
-                    'Address Zip - 2': item['Address Zip - 2'],
-                    'Address Country - 2': item['Address Country - 2'],
-                    'Address Phone - 2': item['Address Phone - 2'],
-                    'Address First Name - 3': item['First Name'],
-                    'Address Last Name - 3': item['Last Name'],
-                    'Address Company - 3': item['Address Company - 3'],
-                    'Address Line 1 - 3': item['Address Line 1 - 3'],
-                    'Address Line 2 - 3': item['Address Line 2 - 3'],
-                    'Address City - 3': item['Address City - 3'],
-                    'Address State - 3': item['Address State - 3'],
-                    'Address Zip - 3': item['Address Zip - 3'],
-                    'Address Country - 3': item['Address Country - 3'],
-                    'Address Phone - 3': item['Address Phone - 3'],
-                    'Accepts Marketing': item['Accepts Marketing'],
-                    'Metafield Namespace': item['Metafield Namespace'],
-                    'Metafield Key': item['Metafield Key'],
-                    'Metafield Value': item['Metafield Value'],
-                    'Metafield Value Type': item['Metafield Value Type'],
-                }))
-
-                /*Write CSV*/
-                changeArray.map((el, index)=>{
-                    let a = `Email Address:${validator.isEmail(el['Email Address'])},Last Name:${validator.isLength(el['Last Name'], {min:3, max: undefined})},First Name:${validator.isLength(el['First Name'], {min:3, max: undefined})},Address Line 1: ${validator.isLength(el['Address Line 1 - 1'], {min:1, max: undefined})},Address Line 2: ${validator.isLength(el['Address Line 2 - 1'], {min:1, max: undefined})},Address City:${validator.isLength(el['Address City - 1'], {min:1, max: undefined})}, Address Country:${validator.isLength(el['Address Country - 1'], {min:1, max: undefined})}, Address Zip:${validator.isLength(el['Address Zip - 1'], {min:1, max: undefined})}`;
-
-                    switch (
-                        validator.isEmail(el['Email Address']) &&
-                        validator.isLength(el['Last Name'], {min:3, max: undefined}) &&
-                        validator.isLength(el['First Name'], {min:3, max: undefined}) &&
-                        validator.isLength(el['Address Line 1 - 1'], {min:1, max: undefined}) &&
-                        validator.isLength(el['Address Line 2 - 1'], {min:1, max: undefined}) &&
-                        validator.isLength(el['Address City - 1'], {min:1, max: undefined}) &&
-                        validator.isLength(el['Address Country - 1'], {min:1, max: undefined}) &&
-                        validator.isLength(el['Address Zip - 1'], {min:1, max: undefined})
-                        ) {
-                        case true:
-                            countSuccessfully++;
-                            writerExport.write(el);
-                            break;
-                        case false:
-                            countError++;
-                            ValidationData.push([++index, a]);
-                            logger.info(`Validation ${JSON.stringify(a)} - ${JSON.stringify(el)}`);
-                            break;
-                        default:
-                            logger.info(`default`);
-                            break;
-                    }
+                productsBigCommerce.map((lineItem)=>{
+                    //console.log('line', lineItem);
+                    bigCommerce.post(`/catalog/products`, lineItem)
+                        .then((data) => {
+                            console.log('data', data);
+                        })
+                        .catch((err)=>{
+                            console.log("Error", err);
+                            logger.info(`${JSON.stringify(err)}`);
+                        })
                 })
             })
-            .then(()=>{
-                res.status(201).send({
-                    message: 'FILE RECEIVED!',
-                    countSuccessfully: countSuccessfully,
-                    countError: countError,
-                    ValidationData: ValidationData
-                });
-            })
-
     } catch (e) {
-        console.log('error', e)
+        console.log('error9999', e)
     }
-});
-app.get('/download', function (req, res, next) {
-    res.download(__dirname + `/${FILENAME_TIMESTAMP_FORMAT}`, `${FILENAME_TIMESTAMP_FORMAT}`);
 });
 
 app.listen(8080 || process.env.PORT, function () {
